@@ -25,7 +25,7 @@ class BoxAuthType(Enum):
     CCG = "ccg"
     JWT = "jwt"
 
-class BoxClient():
+class BoxClientProxy():
 
     def __init__(self,
         auth_type: str,
@@ -37,10 +37,15 @@ class BoxClient():
         box_jwt_path: Optional[str] = None         ,
     ):
         """Create a Box client."""
+        try:
+            from box_sdk_gen import BoxClient, BoxSDKError
+        except ImportError:
+            raise ImportError("You must run `pip install box-sdk-gen[jwt]`")
+        
         match auth_type:
             case "token":
                 try:
-                    from box_sdk_gen import BoxClient, BoxDeveloperTokenAuth, BoxSDKError
+                    from box_sdk_gen import BoxDeveloperTokenAuth
                 except ImportError:
                     raise ImportError("You must run `pip install box-sdk-gen`")
 
@@ -56,7 +61,7 @@ class BoxClient():
 
             case "jwt":
                 try:
-                    from box_sdk_gen import BoxClient, BoxJWTAuth, JWTConfig, BoxSDKError
+                    from box_sdk_gen import BoxJWTAuth, JWTConfig
                 except ImportError:
                     raise ImportError("You must run `pip install box-sdk-gen[jwt]`")
 
@@ -77,7 +82,7 @@ class BoxClient():
 
             case "ccg":
                 try:
-                    from box_sdk_gen import BoxClient, BoxCCGAuth, CCGConfig, BoxSDKError
+                    from box_sdk_gen import BoxCCGAuth, CCGConfig
                 except ImportError:
                     raise ImportError("You must run `pip install box-sdk-gen`")
 
@@ -132,8 +137,6 @@ class BoxAPIWrapper(BaseModel):
     @root_validator()
     def validate_inputs(cls, values: Dict[str, Any]) -> Dict[str, Any]:
 
-        box = None
-
         """Validate auth_type is set"""
         if not values.get("auth_type"):
             raise ValueError(f"Auth type must be set.")
@@ -162,20 +165,21 @@ class BoxAPIWrapper(BaseModel):
             ): 
                 raise ValueError(f"{values.get('auth_type')} requires box_client_id, box_client_secret, and box_enterprise_id.")
 
-        box = BoxClient(
-            auth_type = values.get("auth_type"),
-            box_developer_token = values.get("box_developer_token"),
-            box_client_id = values.get("box_client_id"),
-            box_client_secret = values.get("box_client_secret"),
-            box_user_id = values.get("box_user_id"),
-            box_enterprise_id = values.get("box_enterprise_id"),
-            box_jwt_path =  values.get("box_jwt_path")
-        )
-
-        values["box"] = box.get_client()
+        values["box"] = None
         values["TOKEN_LIMIT"] = 10000
 
         return values
+    
+    def _get_box_client(self):
+        self.box = BoxClientProxy(
+            auth_type = self.auth_type,
+            box_developer_token = self.box_developer_token,
+            box_client_id = self.box_client_id,
+            box_client_secret = self.box_client_secret,
+            box_user_id = self.box_user_id,
+            box_enterprise_id = self.box_enterprise_id,
+            box_jwt_path = self.box_jwt_path
+        )
     
     def _do_request(self, url: str):
         try:
@@ -199,6 +203,9 @@ class BoxAPIWrapper(BaseModel):
             from box_sdk_gen import BoxSDKError
         except ImportError:
             raise ImportError("You must run `pip install box-sdk-gen`")
+
+        if self.box is None:
+            self._get_box_client()
         
         try:
             folder_contents = self.box.folders.get_folder_items(folder_id, fields=["name","id"])
@@ -216,6 +223,9 @@ class BoxAPIWrapper(BaseModel):
         
         if file_id is None:
             file_id=self.box_file_id
+
+        if self.box is None:
+            self._get_box_client()
 
         try:
             file = self.box.files.get_file_by_id(file_id, x_rep_hints="[extracted_text]", fields=["name","representations"])
@@ -266,13 +276,16 @@ class BoxAPIWrapper(BaseModel):
             "title": f"{file_name}",
         }
 
-        return Document(page_content=content, metadata=metadata)
+        return Document(page_content=content, metadata=metadata) 
                 
     def get_documents_by_file_ids(self, box_file_ids: List[str] = None) -> List[Document]:
         """Load documents from a list of Box file paths."""
 
         if box_file_ids is None:
             box_file_ids = self.box_file_ids
+
+        if self.box is None:
+            self._get_box_client()
             
         
         files = []
@@ -289,6 +302,9 @@ class BoxAPIWrapper(BaseModel):
 
         if box_folder_id is None:
             box_folder_id = self.box_folder_id
+
+        if self.box is None:
+            self._get_box_client()
             
         """Load documents from a Box folder."""
         folder_content = self.get_folder_information(box_folder_id)
@@ -311,6 +327,9 @@ class BoxAPIWrapper(BaseModel):
         
         if query is None:
             query = self.box_search_query
+
+        if self.box is None:
+            self._get_box_client()
         
         files = []
         try:
@@ -330,6 +349,9 @@ class BoxAPIWrapper(BaseModel):
         
         if query is None:
             query = self.box_search_query
+
+        if self.box is None:
+            self._get_box_client()
         
         print(f"GDBS: query {query} token {self.box_developer_token}")
         files = self.get_search_results(query)
@@ -358,6 +380,9 @@ class BoxAPIWrapper(BaseModel):
 
         if eid is None:
             eid = self.box_enterprise_id
+
+        if self.box is None:
+            self._get_box_client()
         
         files = []
         params = json.loads(param_string)
@@ -391,6 +416,9 @@ class BoxAPIWrapper(BaseModel):
 
         if eid is None:
             eid = self.box_enterprise_id
+
+        if self.box is None:
+            self._get_box_client()
         
         files = self.get_metadata_query_results(query, template, param_string, eid)
 
@@ -405,6 +433,9 @@ class BoxAPIWrapper(BaseModel):
             query = self.box_ai_prompt
         if file_ids is None:
             file_ids = self.box_file_ids
+
+        if self.box is None:
+            self._get_box_client()
 
         try:
             from box_sdk_gen import CreateAiAskMode, CreateAiAskItems, CreateAiAskItemsTypeField, BoxSDKError
@@ -454,6 +485,9 @@ class BoxAPIWrapper(BaseModel):
             query = self.box_ai_prompt
         if file_ids is None:
             file_ids = self.box_file_ids
+
+        if self.box is None:
+            self._get_box_client()
             
         return NotImplemented
     
@@ -463,6 +497,9 @@ class BoxAPIWrapper(BaseModel):
             query = self.box_ai_prompt
         if file_ids is None:
             file_ids = self.box_file_ids
+
+        if self.box is None:
+            self._get_box_client()
             
         return NotImplemented
 
