@@ -6,10 +6,7 @@ from langchain_core.pydantic_v1 import root_validator
 from langchain_core.tools import BaseToolkit
 
 from langchain_community.tools import BaseTool
-from langchain_community.tools.box.box_file_search import BoxFileSearchTool
-from langchain_community.tools.box.box_ai_ask import BoxAIAskTool
-from langchain_community.tools.box.box_text_rep import BoxTextRepTool
-from langchain_community.tools.box.box_folder_contents import BoxFolderContentsTool
+from langchain_box.tools import BoxFileSearchTool, BoxAIAskTool, BoxTextRepTool, BoxFolderContentsTool
 
 
 _BOX_TOOLS: List[Type[BaseTool]] = [

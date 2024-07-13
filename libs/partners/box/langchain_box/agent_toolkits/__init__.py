@@ -1,6 +1,6 @@
 """Box toolkit."""
 
-from langchain_community.agent_toolkits.box.toolkit import (
+from langchain_box.agent_toolkits.toolkit import (
     BoxToolkit,
 )
 

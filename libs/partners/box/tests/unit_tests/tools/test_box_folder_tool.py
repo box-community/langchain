@@ -6,8 +6,8 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from pytest_mock import MockerFixture
 
-from langchain_community.document_loaders.box import BoxLoader, Mode
-from langchain_community.utilities.box import BoxAPIWrapper, BoxAuthType
+from libs.partners.box.langchain_box.document_loaders.box import BoxLoader, Mode
+from libs.partners.box.langchain_box.utilities.box import BoxAPIWrapper, BoxAuthType
 
 from langchain_core.documents import Document
 

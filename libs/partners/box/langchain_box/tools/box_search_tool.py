@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.documents import Document
@@ -10,7 +9,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
 from langchain_core.tools import BaseTool
 from langchain_core.utils import get_from_dict_or_env
 
-from langchain_community.utilities.box import BoxAPIWrapper, BoxAuthType
+from langchain_box.utilities import BoxAPIWrapper
 
 logger = logging.getLogger(__name__)
 

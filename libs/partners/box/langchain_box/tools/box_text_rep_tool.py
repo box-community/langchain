@@ -9,40 +9,42 @@ from langchain_core.pydantic_v1 import root_validator
 from langchain_core.tools import BaseTool
 from langchain_core.utils import get_from_dict_or_env
 
-from langchain_community.utilities.box import BoxAPIWrapper, BoxAuthType
+from langchain_box.utilities import BoxAPIWrapper, BoxAuthType
 
 logger = logging.getLogger(__name__)
 
 
-class BoxAIAskTool(BaseTool):
+class BoxTextRepTool(BaseTool):
     """
-        Tool that calls Box AI to ask a question on a document(s) and adds the answer to your Documents.
-        This is only available to Box customers on an Enterprise+ plan or higher.
+        Tool that retrieves a text representation of any file that has one.
     """
 
     box_developer_token: str = ""  #: :meta private:
-    box_file_ids: List[str] = None
+    box_file_id: str
 
-    name: str = "box_ai_ask"
+    name: str = "box_text_rep"
     description: str = (
-        "A wrapper for asking Box AI a question about one or more documents. "
-        "The response is in the form of List[Document] to add to your document list."
+        "A wrapper for Box to retrieve the text representation of a file. "
+        "set query equal to a string equal to the file Id you wish to "
+        "download the text representation for."
     )
 
-    @root_validator(pre=True)
+    @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that api key and endpoint exists in environment."""
         box_developer_token = get_from_dict_or_env(
             values, "box_developer_token", "BOX_DEVELOPER_TOKEN"
         )
 
-        if not values.get("box_file_ids"):
-            raise ValueError("Box AI requires List[str] with file_ids.")
+        if not values.get("box_file_id"):
+            raise ValueError("Box AI requires a file_id.")
+        
+        box_file_id = values.get("box_file_id")
 
         box = BoxAPIWrapper(
-            auth_type=BoxAuthType.TOKEN,
+            auth_type="token",
             box_developer_token=box_developer_token,
-            box_file_ids=values.get("box_file_ids")
+            box_file_id=box_file_id
         )
 
         values["box"] = box
@@ -56,8 +58,8 @@ class BoxAIAskTool(BaseTool):
     ) -> str:
         """Use the tool."""
         try:
-            return self.box.get_documents_by_box_ai_ask(query, True)
+            return self.box.get_text_representation(query)
         except Exception as e:
             raise RuntimeError(
-                f"Error while running BoxAIAskTool: {e}"
+                f"Error while running BoxTextRepTool: {e}"
             )

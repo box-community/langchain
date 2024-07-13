@@ -6,7 +6,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from pytest_mock import MockerFixture
 
-from langchain_community.utilities.box import BoxAPIWrapper, BoxClientProxy
+from libs.partners.box.langchain_box.utilities.box import BoxAPIWrapper, BoxClientProxy
 
 from langchain_core.documents import Document
 

@@ -2,121 +2,18 @@
 from enum import Enum
 import json
 import requests
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from langchain_core.documents import Document
-from langchain_core.pydantic_v1 import BaseModel, root_validator, ConfigDict, validator
+from langchain_core.pydantic_v1 import BaseModel, root_validator, ConfigDict
 from langchain_core.utils import get_from_dict_or_env
-from langchain_community.document_loaders.pdf import UnstructuredPDFLoader
 
-"""
-    AuthType - an enum to tell BoxLoader how you wish to autheticate your Box connection.
+from langchain_box.utilities import BoxAuth
 
-    Options are:
-    TOKEN - Use a developer token generated from the Box Deevloper Token. Only recommended for development.
-            provide `box_developer_token`.
-    CCG - Client Credentials Grant.
-          provide `box_client_id`, `box_client_secret`, `box_enterprise_id` and optionally `box_user_id`.
-    JWT - Use JWT for authentication. Config should be stored on the file system accessible to your app.
-          provide `box_jwt_path`. 
-"""
-class BoxAuthType(Enum):
-    TOKEN = "token"
-    CCG = "ccg"
-    JWT = "jwt"
-
-class BoxClientProxy():
-
-    def __init__(self,
-        auth_type: str,
-        box_developer_token: Optional[str] = None,
-        box_client_id: Optional[str] = None,
-        box_client_secret: Optional[str] = None,
-        box_user_id: Optional[str] = None,
-        box_enterprise_id: Optional[str] = None,
-        box_jwt_path: Optional[str] = None         ,
-    ):
-        """Create a Box client."""
-        try:
-            from box_sdk_gen import BoxClient, BoxSDKError
-        except ImportError:
-            raise ImportError("You must run `pip install box-sdk-gen[jwt]`")
-        
-        match auth_type:
-            case "token":
-                try:
-                    from box_sdk_gen import BoxDeveloperTokenAuth
-                except ImportError:
-                    raise ImportError("You must run `pip install box-sdk-gen`")
-
-                try:
-                    auth = BoxDeveloperTokenAuth(token=box_developer_token)
-                    self.box_client = BoxClient(auth=auth)
-                except BoxSDKError as bse:
-                    raise RuntimeError(f"Error getting client from developer token: {bse.message}")
-                except Exception as ex:
-                    raise ValueError(
-                        f"Invalid Box developer token. Please verify your token and try again.\n{ex}"
-                    ) from ex
-
-            case "jwt":
-                try:
-                    from box_sdk_gen import BoxJWTAuth, JWTConfig
-                except ImportError:
-                    raise ImportError("You must run `pip install box-sdk-gen[jwt]`")
-
-                try:
-                    jwt_config = JWTConfig.from_config_file(config_file_path=box_jwt_path)
-                    auth = BoxJWTAuth(config=jwt_config)
-
-                    if box_user_id:
-                        auth.with_user_subject(box_user_id)
-                    
-                    self.box_client = BoxClient(auth=auth)
-                except BoxSDKError as bse:
-                    raise RuntimeError(f"Error getting client from jwt token: {bse.message}")
-                except Exception as ex:
-                    raise ValueError(
-                        "Error authenticating. Please verify your JWT config and try again."
-                    ) from ex
-
-            case "ccg":
-                try:
-                    from box_sdk_gen import BoxCCGAuth, CCGConfig
-                except ImportError:
-                    raise ImportError("You must run `pip install box-sdk-gen`")
-
-                try:
-                    ccg_config = CCGConfig(
-                        client_id=box_client_id,
-                        client_secret=box_client_secret,
-                        enterprise_id=box_enterprise_id,
-                    )
-                    auth = BoxCCGAuth(config=ccg_config)
-
-                    if box_user_id:
-                        auth.with_user_subject(box_user_id)
-
-                    self.box_client = BoxClient(auth=auth)
-                except BoxSDKError as bse:
-                    raise RuntimeError(f"Error getting client from ccg token: {bse.message}")
-                except Exception as ex:
-                    raise ValueError(
-                        "Error authenticating. Please verify you are providing a valid client id, secret \
-                            and either a valid user ID or enterprise ID."
-                    ) from ex
-                
-            case _:
-                raise ValueError(f"{self.auth_type} is not a valid auth_type. Value must be \
-                TOKEN, CCG, or JWT.")
-        
-    def get_client(self):
-        return self.box_client
+from box_sdk_gen import BoxClient
     
 class BoxAPIWrapper(BaseModel):
     """Wrapper for Box API."""
-
-    model_config = ConfigDict(use_enum_values=True)
     
     auth_type: str
     box_developer_token: Optional[str] = None
@@ -133,10 +30,16 @@ class BoxAPIWrapper(BaseModel):
     box_metadata_template: Optional[str] = None
     box_metadata_params: Optional[str] = None
     box_ai_prompt: Optional[str] = None
+    box: Optional[BoxClient] = None
+
+    class Config:
+        arbitrary_types_allowed = True
+        use_enum_values=True
+        extra = "allow"
     
     @root_validator()
     def validate_inputs(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-
+        
         """Validate auth_type is set"""
         if not values.get("auth_type"):
             raise ValueError(f"Auth type must be set.")
@@ -165,13 +68,13 @@ class BoxAPIWrapper(BaseModel):
             ): 
                 raise ValueError(f"{values.get('auth_type')} requires box_client_id, box_client_secret, and box_enterprise_id.")
 
-        values["box"] = None
-        values["TOKEN_LIMIT"] = 10000
+        values['box'] = None
+        values['TOKEN_LIMIT'] = 10000
 
         return values
     
-    def _get_box_client(self):
-        self.box = BoxClientProxy(
+    def get_box_client(self):
+        box_auth = BoxAuth(
             auth_type = self.auth_type,
             box_developer_token = self.box_developer_token,
             box_client_id = self.box_client_id,
@@ -180,6 +83,8 @@ class BoxAPIWrapper(BaseModel):
             box_enterprise_id = self.box_enterprise_id,
             box_jwt_path = self.box_jwt_path
         )
+
+        self.box = box_auth.get_client()
     
     def _do_request(self, url: str):
         try:
@@ -198,19 +103,21 @@ class BoxAPIWrapper(BaseModel):
         resp.raise_for_status()
         return resp.content    
     
-    def get_folder_information(self, folder_id: str):
+    def get_folder_items(self, folder_id: str):
         try:
-            from box_sdk_gen import BoxSDKError
+            from box_sdk_gen import BoxAPIError, BoxSDKError
         except ImportError:
             raise ImportError("You must run `pip install box-sdk-gen`")
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
         
         try:
-            folder_contents = self.box.folders.get_folder_items(folder_id, fields=["name","id"])
+            folder_contents = self.box.folders.get_folder_items(folder_id, fields=["id", "type"])
+        except BoxAPIError as bae:
+            raise RuntimeError(f"BoxAPIError: Error getting folder content: {bae.message}")
         except BoxSDKError as bse:
-            raise RuntimeError(f"Error getting client from jwt token: {bse.message}")
+            raise RuntimeError(f"BoxSDKError: Error getting folder content: {bse.message}")
 
         return folder_contents.entries
         
@@ -225,24 +132,22 @@ class BoxAPIWrapper(BaseModel):
             file_id=self.box_file_id
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
 
         try:
             file = self.box.files.get_file_by_id(file_id, x_rep_hints="[extracted_text]", fields=["name","representations"])
-        except BoxSDKError as sdk_ex:
-            print(f"BoxSDKError: Error getting text rep: {sdk_ex.message}")
-            return None, None, None
-        except BoxAPIError as api_ex:
-            print(f"BoxAPIError: Error getting text rep: {api_ex.message}")
-            return None, None, None
+        except BoxAPIError as bae:
+            raise RuntimeError(f"BoxAPIError: Error getting text rep: {bae.message}")
+        except BoxSDKError as bse:
+            raise RuntimeError(f"BoxSDKError: Error getting text rep: {bse.message}")
         except Exception as ex:
-            print(f"Exception: Error getting text rep: {ex.message}")
+            print(f"Exception: Error getting text rep: {ex}")
             return None, None, None
 
         file_repr = file.representations.entries
 
         if len(file_repr) <=0:
-            print(f"GTR: no entries for file {file_id}\n\n")
+            print(f"No text representations for file {file_id}\n\n")
             return None, None, None
 
         for entry in file_repr:
@@ -281,11 +186,12 @@ class BoxAPIWrapper(BaseModel):
     def get_documents_by_file_ids(self, box_file_ids: List[str] = None) -> List[Document]:
         """Load documents from a list of Box file paths."""
 
+        print(f"GDBFI self {self}")
         if box_file_ids is None:
             box_file_ids = self.box_file_ids
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
             
         
         files = []
@@ -298,30 +204,21 @@ class BoxAPIWrapper(BaseModel):
 
         return files
     
-    def get_documents_by_folder_id(self, box_folder_id: str = None) -> List[Document]:
+    def get_documents_by_folder_id(self, box_folder_id: str = None) -> Iterator[Document]:
 
         if box_folder_id is None:
             box_folder_id = self.box_folder_id
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
             
         """Load documents from a Box folder."""
-        folder_content = self.get_folder_information(box_folder_id)
-        
-        files = []
-        
-        for file in folder_content:
-            file = self.get_document_by_file_id(file.id)
-            if file is not None:
-                files.append(file)
-
-        return files
+        return self.get_folder_items(box_folder_id)
     
     def get_search_results(self, query:str = None):
         
         try:
-            from box_sdk_gen import BoxSDKError
+            from box_sdk_gen import BoxAPIError, BoxSDKError
         except ImportError:
             raise ImportError("You must run `pip install box-sdk-gen`")
         
@@ -329,7 +226,7 @@ class BoxAPIWrapper(BaseModel):
             query = self.box_search_query
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
         
         files = []
         try:
@@ -340,8 +237,10 @@ class BoxAPIWrapper(BaseModel):
                     files.append(file.id)
 
             return files
+        except BoxAPIError as bae:
+            raise RuntimeError(f"BoxAPIError: Error getting search results: {bae.message}")
         except BoxSDKError as bse:
-            raise RuntimeError(f"Error getting search results: {bse.message}")
+            raise RuntimeError(f"BoxSDKError: Error getting search results: {bse.message}")
 
         
     
@@ -351,7 +250,7 @@ class BoxAPIWrapper(BaseModel):
             query = self.box_search_query
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
         
         print(f"GDBS: query {query} token {self.box_developer_token}")
         files = self.get_search_results(query)
@@ -365,7 +264,7 @@ class BoxAPIWrapper(BaseModel):
     
     def get_metadata_query_results(self, query: str = None, template: str = None, param_string: str = None, eid: str = None):
         try:
-            from box_sdk_gen import BoxSDKError
+            from box_sdk_gen import BoxAPIError, BoxSDKError
         except ImportError:
             raise ImportError("You must run `pip install box-sdk-gen`")
         
@@ -382,15 +281,17 @@ class BoxAPIWrapper(BaseModel):
             eid = self.box_enterprise_id
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
         
         files = []
         params = json.loads(param_string)
 
         try:
             results = self.box.search.search_by_metadata_query(f"enterprise_{eid}.{template}", ancestor_folder_id="0", query=query, query_params=params)
+        except BoxAPIError as bae:
+            raise RuntimeError(f"BoxAPIError: Error getting Metadata query results: {bae.message}")
         except BoxSDKError as bse:
-            raise RuntimeError(f"Error getting metadata_query results: {bse.message}")
+            raise RuntimeError(f"BoxSDKError: Error getting Metadata query results: {bse.message}")
         
         for file in results.entries:
             if file is not None:
@@ -399,12 +300,7 @@ class BoxAPIWrapper(BaseModel):
         return files
     
     def get_documents_by_metadata_query(self, query: str = None, template: str = None, param_string: str = None, eid: str = None) -> List[Document]:
-        
-        try:
-            from box_sdk_gen import BoxSDKError
-        except ImportError:
-            raise ImportError("You must run `pip install box-sdk-gen`")
-        
+                
         if query is None:
             query = self.box_metadata_query
 
@@ -417,9 +313,6 @@ class BoxAPIWrapper(BaseModel):
         if eid is None:
             eid = self.box_enterprise_id
 
-        if self.box is None:
-            self._get_box_client()
-        
         files = self.get_metadata_query_results(query, template, param_string, eid)
 
         if len(files) <= 0:
@@ -427,7 +320,7 @@ class BoxAPIWrapper(BaseModel):
         
         return self.get_documents_by_file_ids(files)
     
-    def get_documents_by_box_ai_ask(self, query: str = None, file_ids: List[str] = None, return_response: bool = False) -> List[Document]:
+    def get_documents_by_box_ai_ask(self, query: str = None, file_ids: List[str] = None, return_response: bool = False) -> Document:
 
         if query is None:
             query = self.box_ai_prompt
@@ -435,10 +328,10 @@ class BoxAPIWrapper(BaseModel):
             file_ids = self.box_file_ids
 
         if self.box is None:
-            self._get_box_client()
+            self.get_box_client()
 
         try:
-            from box_sdk_gen import CreateAiAskMode, CreateAiAskItems, CreateAiAskItemsTypeField, BoxSDKError
+            from box_sdk_gen import CreateAiAskMode, CreateAiAskItems, CreateAiAskItemsTypeField, BoxAPIError, BoxSDKError
         except ImportError:
             raise ImportError("You must run `pip install box-sdk-gen`")
         
@@ -464,8 +357,10 @@ class BoxAPIWrapper(BaseModel):
                 query,
                 items
             )
+        except BoxAPIError as bae:
+            raise RuntimeError(f"BoxAPIError: Error getting Box AI result: {bae.message}")
         except BoxSDKError as bse:
-            raise RuntimeError(f"Error getting Box AI Response: {bse.message}")
+            raise RuntimeError(f"BoxSDKError: Error getting Box AI result: {bse.message}")
 
         content=response.answer
 
@@ -477,31 +372,8 @@ class BoxAPIWrapper(BaseModel):
             "title": f"Box AI {query}"
         }
 
-        return [Document(page_content=content, metadata=metadata)]
-    
-    def get_documents_by_box_ai_extract(self, query: str = None, file_ids: List[str] = None) -> List[Document]:
+        return Document(page_content=content, metadata=metadata)
 
-        if query is None:
-            query = self.box_ai_prompt
-        if file_ids is None:
-            file_ids = self.box_file_ids
-
-        if self.box is None:
-            self._get_box_client()
-            
-        return NotImplemented
-    
-    def get_documents_by_citations(self, query: str  = None, file_ids: List[str] = None):
-
-        if query is None:
-            query = self.box_ai_prompt
-        if file_ids is None:
-            file_ids = self.box_file_ids
-
-        if self.box is None:
-            self._get_box_client()
-            
-        return NotImplemented
 
     def run(self, mode: str, query: str) -> str:
         match mode:
@@ -511,9 +383,5 @@ class BoxAPIWrapper(BaseModel):
                 return self.metadata_query(query)
             case "box_ai_ask":
                 return self.box_ai_ask_response(query)
-            case "box_ai_extract":
-                return self.box_ai_exxtract_response(query)
-            case "citations":
-                return self.citations(query)
             case _:
                 raise ValueError(f"Got unexpected mode {mode}")
