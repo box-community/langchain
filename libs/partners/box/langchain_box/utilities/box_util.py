@@ -64,7 +64,10 @@ class BoxAPIWrapper(BaseModel):
             if (
                 not get_from_dict_or_env(values, "box_client_id", "BOX_CLIENT_ID") or 
                 not get_from_dict_or_env(values, "box_client_secret", "BOX_CLIENT_SECRET") or 
-                not get_from_dict_or_env(values, "box_enterprise_id", "BOX_ENTERPRISE_ID")
+                (
+                    not values.get("box_enterprise_id") and
+                    not values.get("box_user_id")
+                )
             ): 
                 raise ValueError(f"{values.get('auth_type')} requires box_client_id, box_client_secret, and box_enterprise_id.")
 
@@ -86,7 +89,7 @@ class BoxAPIWrapper(BaseModel):
 
         self.box = box_auth.get_client()
     
-    def _do_request(self, url: str):
+    def _do_request(self, url: str) -> str:
         try:
             from box_sdk_gen import BoxSDKError
         except ImportError:
@@ -121,7 +124,7 @@ class BoxAPIWrapper(BaseModel):
 
         return folder_contents.entries
         
-    def get_text_representation(self, query: str = None, file_id: str = None):
+    def get_text_representation(self, query: str = None, file_id: str = None) -> tuple[str, str, str]:
 
         try:
             from box_sdk_gen import BoxSDKError, BoxAPIError
@@ -215,7 +218,7 @@ class BoxAPIWrapper(BaseModel):
         """Load documents from a Box folder."""
         return self.get_folder_items(box_folder_id)
     
-    def get_search_results(self, query:str = None):
+    def get_search_results(self, query:str = None) -> List[str]:
         
         try:
             from box_sdk_gen import BoxAPIError, BoxSDKError
@@ -262,7 +265,7 @@ class BoxAPIWrapper(BaseModel):
         
         return self.get_documents_by_file_ids(files)
     
-    def get_metadata_query_results(self, query: str = None, template: str = None, param_string: str = None, eid: str = None):
+    def get_metadata_query_results(self, query: str = None, template: str = None, param_string: str = None, eid: str = None) -> List[str]:
         try:
             from box_sdk_gen import BoxAPIError, BoxSDKError
         except ImportError:
@@ -324,6 +327,7 @@ class BoxAPIWrapper(BaseModel):
 
         if query is None:
             query = self.box_ai_prompt
+
         if file_ids is None:
             file_ids = self.box_file_ids
 

@@ -34,6 +34,7 @@ codespell = "^2.2.6"
 optional = true
 
 [tool.poetry.group.test_integration.dependencies]
+python-dotenv = "^1.0.1"
 
 [tool.poetry.group.lint]
 optional = true

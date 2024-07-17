@@ -38,12 +38,29 @@ class BoxAuth():
         box_enterprise_id: Optional[str] = None,
         box_jwt_path: Optional[str] = None         ,
     ):
+        self.auth_type = auth_type
+        self.box_developer_token = box_developer_token
+        self.box_client_id = box_client_id
+        self.box_client_secret = box_client_secret
+        self.box_user_id = box_user_id
+        self.box_enterprise_id = box_enterprise_id
+        self.box_jwt_path = box_jwt_path
+        self.box_client=None
+        self.custom_header: Dict = dict({ "x-box-ai-library" : "langchain" })
+        
+    def add_header(self, box_client:BoxClient ) -> None:
+        self.box_client = box_client.with_extra_headers({ "x-box-ai-library" : "langchain" })
+
+    def authorize(self):
         """Create a Box client."""
-        match auth_type:
+        match self.auth_type:
             case "token":
                 try:
-                    auth = BoxDeveloperTokenAuth(token=box_developer_token)
-                    self.box_client = BoxClient(auth=auth)
+                    auth = BoxDeveloperTokenAuth(token=self.box_developer_token)
+                    temp_client = BoxClient(auth=auth)
+
+                    header_client = temp_client.with_extra_headers(extra_headers=self.custom_header)
+                    self.box_client = header_client
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from developer token: {bse.message}")
                 except Exception as ex:
@@ -53,16 +70,14 @@ class BoxAuth():
 
             case "jwt":
                 try:
-                    jwt_config = JWTConfig.from_config_file(config_file_path=box_jwt_path)
+                    jwt_config = JWTConfig.from_config_file(config_file_path=self.box_jwt_path)
                     auth = BoxJWTAuth(config=jwt_config)
 
-                    self.box_client = BoxClient(auth=auth)
+                    self.add_header(BoxClient(auth=auth))
 
-                    if box_user_id is not None:
-                        user_auth = auth.with_user_subject(box_user_id)
-                        user_client = BoxClient(auth=user_auth)
-                    
-                        self.box_client = user_client
+                    if self.box_user_id is not None:
+                        user_auth = auth.with_user_subject(self.box_user_id)
+                        self.add_header(BoxClient(auth=user_auth))
 
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from jwt token: {bse.message}")
@@ -73,21 +88,22 @@ class BoxAuth():
 
             case "ccg":
                 try:
-                    if box_user_id is not None:
+                    if self.box_user_id is not None:
                         ccg_config = CCGConfig(
-                            client_id=box_client_id,
-                            client_secret=box_client_secret,
-                            user_id=box_user_id,
+                            client_id=self.box_client_id,
+                            client_secret=self.box_client_secret,
+                            user_id=self.box_user_id,
                         )
                     else:
                         ccg_config = CCGConfig(
-                            client_id=box_client_id,
-                            client_secret=box_client_secret,
-                            enterprise_id=box_enterprise_id,
+                            client_id=self.box_client_id,
+                            client_secret=self.box_client_secret,
+                            enterprise_id=self.box_enterprise_id,
                         )
                     auth = BoxCCGAuth(config=ccg_config)
 
-                    self.box_client = BoxClient(auth=auth)
+                    self.add_header(BoxClient(auth=auth))
+
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from ccg token: {bse.message}")
                 except Exception as ex:
@@ -101,4 +117,8 @@ class BoxAuth():
                 TOKEN, CCG, or JWT.")
         
     def get_client(self):
+
+        if self.box_client is None:
+            self.authorize()
+
         return self.box_client

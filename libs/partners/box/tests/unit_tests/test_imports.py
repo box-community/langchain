@@ -1,10 +1,20 @@
 from langchain_box import __all__
 
 EXPECTED_ALL = [
-    "BoxLLM",
-    "ChatBox",
-    "BoxVectorStore",
-    "BoxEmbeddings",
+    "BoxToolkit",
+    "BoxAILoader",
+    "BoxFileLoader",
+    "BoxFolderLoader",
+    "BoxMetadataQueryLoader",
+    "BoxSearchLoader",
+    "BoxAIAskTool",
+    "BoxFileSearchTool",
+    "BoxFolderContentsTool",
+    "BoxTextRepTool",
+    "BoxAuth",
+    "BoxAuthType",
+    "BoxAPIWrapper",
+    "__version__",
 ]
 
 

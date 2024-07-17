@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, Dict, Optional, List
+from typing import Dict, Optional, Type
 
 from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.pydantic_v1 import root_validator
+from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
 from langchain_core.tools import BaseTool
 from langchain_core.utils import get_from_dict_or_env
 
-from langchain_box.utilities import BoxAPIWrapper, BoxAuthType
+from langchain_box.utilities import BoxAPIWrapper
 
 logger = logging.getLogger(__name__)
 
+
+class BoxTextRepInput(BaseModel):
+    """Input for the Box Text Rep tool."""
+
+    description: str = (
+        "input to retrieve the text representation of a file in Box. The input should be a string "
+        "and should contain the Box file id. An example of this is '1169680553945'. Do not include "
+        "any other text."
+    )
+
+    query: str = Field(description=description)
 
 class BoxTextRepTool(BaseTool):
     """
@@ -20,7 +30,6 @@ class BoxTextRepTool(BaseTool):
     """
 
     box_developer_token: str = ""  #: :meta private:
-    box_file_id: str
 
     name: str = "box_text_rep"
     description: str = (
@@ -29,6 +38,8 @@ class BoxTextRepTool(BaseTool):
         "download the text representation for."
     )
 
+    args_schema: Type[BaseModel] = BoxTextRepInput
+
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that api key and endpoint exists in environment."""
@@ -36,15 +47,9 @@ class BoxTextRepTool(BaseTool):
             values, "box_developer_token", "BOX_DEVELOPER_TOKEN"
         )
 
-        if not values.get("box_file_id"):
-            raise ValueError("Box AI requires a file_id.")
-        
-        box_file_id = values.get("box_file_id")
-
         box = BoxAPIWrapper(
             auth_type="token",
             box_developer_token=box_developer_token,
-            box_file_id=box_file_id
         )
 
         values["box"] = box
@@ -58,7 +63,7 @@ class BoxTextRepTool(BaseTool):
     ) -> str:
         """Use the tool."""
         try:
-            return self.box.get_text_representation(query)
+            return self.box.get_text_representation(file_id=query)
         except Exception as e:
             raise RuntimeError(
                 f"Error while running BoxTextRepTool: {e}"
