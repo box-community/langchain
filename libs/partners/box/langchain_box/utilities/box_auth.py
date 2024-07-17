@@ -48,19 +48,14 @@ class BoxAuth():
         self.box_client=None
         self.custom_header: Dict = dict({ "x-box-ai-library" : "langchain" })
         
-    def add_header(self, box_client:BoxClient ) -> None:
-        self.box_client = box_client.with_extra_headers({ "x-box-ai-library" : "langchain" })
-
     def authorize(self):
         """Create a Box client."""
         match self.auth_type:
             case "token":
                 try:
                     auth = BoxDeveloperTokenAuth(token=self.box_developer_token)
-                    temp_client = BoxClient(auth=auth)
+                    self.box_client = BoxClient(auth=auth).with_extra_headers(extra_headers=self.custom_header)
 
-                    header_client = temp_client.with_extra_headers(extra_headers=self.custom_header)
-                    self.box_client = header_client
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from developer token: {bse.message}")
                 except Exception as ex:
@@ -73,11 +68,11 @@ class BoxAuth():
                     jwt_config = JWTConfig.from_config_file(config_file_path=self.box_jwt_path)
                     auth = BoxJWTAuth(config=jwt_config)
 
-                    self.add_header(BoxClient(auth=auth))
+                    self.box_client = BoxClient(auth=auth).with_extra_headers(extra_headers=self.custom_header)
 
                     if self.box_user_id is not None:
                         user_auth = auth.with_user_subject(self.box_user_id)
-                        self.add_header(BoxClient(auth=user_auth))
+                        self.box_client = BoxClient(auth=user_auth).with_extra_headers(extra_headers=self.custom_header)
 
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from jwt token: {bse.message}")
@@ -102,7 +97,7 @@ class BoxAuth():
                         )
                     auth = BoxCCGAuth(config=ccg_config)
 
-                    self.add_header(BoxClient(auth=auth))
+                    self.box_client = BoxClient(auth=auth).with_extra_headers(extra_headers=self.custom_header)
 
                 except BoxSDKError as bse:
                     raise RuntimeError(f"Error getting client from ccg token: {bse.message}")
