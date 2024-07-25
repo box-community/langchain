@@ -5,6 +5,7 @@ EXPECTED_ALL = [
     "AmadeusToolkit",
     "AzureAiServicesToolkit",
     "AzureCognitiveServicesToolkit",
+    "BoxToolkit",
     "ConneryToolkit",
     "FileManagementToolkit",
     "GmailToolkit",

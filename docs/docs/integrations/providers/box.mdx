@@ -1,0 +1,180 @@
+# Box
+
+[Box](https://box.com) is an enterprise-grade secure SaaS platform designed to meet all your content needs. From basics like file storage and secure collaboration, to more advanced use cases like e-signatures and built-in AI capabilities, Box has you covered. 
+
+In this package, we make available a number of ways to include Box content in your AI workflows. 
+
+### Installation and setup
+
+```text
+%pip install -U langchain-box
+
+```
+
+### Authentication
+
+The langchain-box package supports several authentication methods, so you can either take care of it in advance or use our built-in authentication methods.
+
+If you have a token, you can pass it when you instantiate our DocumentLoaders or for our tools, you can pass it or set an environment variable to `BOX_DEVELOPER_TOKEN`. We'll cover this in more detail in each usage document.
+
+If you prefer to let us handle it, you have a couple of options. 
+
+* For all objects, you can directly instantiate our `BoxAuth` package and pass the variables needed to obtain a token.
+
+```python
+from langchain_box.utilities import BoxAuth, BoxAuthType
+
+box = BoxAuth(
+    auth_type=BoxAuthType.JWT,
+    box_jwt_path=box_jwt_path
+)
+
+token - box.get_token()
+```
+
+* For DocumentLoaders, you can pass those variables as arguments when you instantiate the loader.
+
+```python
+from langchain_box.document_loaders import BoxFolderLoader
+from langchain_box.utilities import BoxAuthType
+
+loader = BoxFolderLoader(
+    auth_type=BoxAuthType.JWT,
+    box_jwt_path=box_jwt_path,
+    box_folder_id=box_folder_id
+)
+docs = loader.load()
+```
+
+We support five authentication models:
+
+<table>
+  <tr>
+    <th>model</th>
+    <th>account type</th>
+    <th>required arguments</th>
+  </tr>
+  <tr>
+    <td>BoxAuthType.TOKEN</td>
+    <td>determined by token</td>
+    <td>box_developer_token</td>
+  </tr>
+  <tr>
+    <td>BoxAuthType.JWT</td>
+    <td>service account</td>
+    <td>box_jwt_path</td>
+  </tr>
+  <tr>
+    <td>BoxAuthType.JWT</td>
+    <td>user account</td>
+    <td>box_jwt_path<br />box_user_id</td>
+  </tr>
+  <tr>
+    <td>BoxAuthType.CCG</td>
+    <td>service account</td>
+    <td>box_client_id<br />box_client_secret<br />box_enterprise_id</td>
+  </tr>
+  <tr>
+    <td>BoxAuthType.CCG</td>
+    <td>user account</td>
+    <td>box_client_id<br />box_client_secret<br />box_user_id</td>
+  </tr>
+</table>
+
+If you wish to use OAuth2 with the authorization_code flow, please use `BoxAuthType.TOKEN` with the token you have acquired.
+
+## Chat Models
+
+### BoxChatModel
+
+[See usage example](/docs/integrations/chat/box_chat_model)
+
+```python
+from langchain_box.chat_models import BoxChatModel
+
+```
+
+## Tools
+
+### BoxAIAskTool
+
+[See usage example](/docs/integrations/tools/box_ai_tool)
+
+```python
+from langchain_box.tools import BoxAIAskTool
+
+```
+
+### BoxFolderContentsTool
+
+[See usage example](/docs/integrations/tools/box_folder_tool)
+
+```python
+from langchain_box.tools import BoxFolderContentsTool
+
+```
+
+### BoxFileSearchTool
+
+[See usage example](/docs/integrations/tools/box_search_tool)
+
+```python
+from langchain_box.tools import BoxFileSearchTool
+
+```
+
+### BoxTextRepTool
+
+[See usage example](/docs/integrations/tools/box_text_tool)
+
+```python
+from langchain_box.tools import BoxTextRepTool
+
+```
+
+## Document Loaders
+
+### BoxAILoader
+
+[See usage example](/docs/integrations/document_loaders/box_ai_loader)
+
+```python
+from langchain_box.document_loaders import BoxAILoader
+
+```
+
+### BoxFileLoader
+
+[See usage example](/docs/integrations/document_loaders/box_file_loader)
+
+```python
+from langchain_box.document_loaders import BoxFileLoader
+
+```
+
+### BoxFolderLoader
+
+[See usage example](/docs/integrations/document_loaders/box_folder_loader)
+
+```python
+from langchain_box.document_loaders import BoxFolderLoader
+
+```
+
+### BoxMetadataQueryLoader
+
+[See usage example](/docs/integrations/document_loaders/box_metadata_loader)
+
+```python
+from langchain_box.document_loaders import BoxMetadataQueryLoader
+
+```
+
+### BoxSearchLoader
+
+[See usage example](/docs/integrations/document_loaders/box_search_loader)
+
+```python
+from langchain_box.document_loaders import BoxSearchLoader
+
+```
