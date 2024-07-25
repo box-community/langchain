@@ -72,6 +72,84 @@ class BoxAPIWrapper(BaseModel):
                 raise ValueError(f"{values.get('auth_type')} requires box_client_id, box_client_secret, and box_enterprise_id.")
 
         values['box'] = None
+
+        DOCUMENT_EXTENSIONS = [
+            "doc",
+            "docx",
+            "gdoc",
+            "gsheet",
+            "numbers",
+            "ods",
+            "odt",
+            "pages",
+            "pdf",
+            "rtf",
+            "wpd",
+            "xls",
+            "xlsm",
+            "xlsx",
+            "as",
+            "as3",
+            "asm",
+            "bat",
+            "c",
+            "cc",
+            "cmake",
+            "cpp",
+            "cs",
+            "css",
+            "csv",
+            "cxx",
+            "diff",
+            "erb",
+            "groovy",
+            "h",
+            "haml",
+            "hh",
+            "htm",
+            "html",
+            "java",
+            "js",
+            "json",
+            "less",
+            "log",
+            "m",
+            "make",
+            "md",
+            "ml",
+            "mm",
+            "msg",
+            "php",
+            "pl",
+            "properties",
+            "py",
+            "rb",
+            "rst",
+            "sass",
+            "scala",
+            "scm",
+            "script",
+            "sh",
+            "sml",
+            "sql",
+            "txt",
+            "vi",
+            "vim",
+            "webdoc",
+            "xhtml",
+            "xlsb",
+            "xml",
+            "xsd",
+            "xsl",
+            "yaml",
+            "gslide",
+            "gslides",
+            "key",
+            "odp",
+            "ppt",
+            "pptx",
+        ]
+        values["DOCUMENT_EXTENSIONS"] = DOCUMENT_EXTENSIONS
         values['TOKEN_LIMIT'] = 10000
 
         return values
@@ -138,7 +216,7 @@ class BoxAPIWrapper(BaseModel):
             self.get_box_client()
 
         try:
-            file = self.box.files.get_file_by_id(file_id, x_rep_hints="[extracted_text]", fields=["name","representations"])
+            file = self.box.files.get_file_by_id(file_id, x_rep_hints="[extracted_text]", fields=["name","representations", "type"])
         except BoxAPIError as bae:
             raise RuntimeError(f"BoxAPIError: Error getting text rep: {bae.message}")
         except BoxSDKError as bse:
@@ -233,10 +311,11 @@ class BoxAPIWrapper(BaseModel):
         
         files = []
         try:
-            results = self.box.search.search_for_content(query=query, fields=["id"])
-
+            results = self.box.search.search_for_content(query=query, fields=["id", "type", "extension"])
+            print(f"GSR: results.entries {results.entries}")
             for file in results.entries:
-                if file is not None:
+                print(f"GSR: file {file}")
+                if file is not None and file.type == "file" and file.extension in self.DOCUMENT_EXTENSIONS:
                     files.append(file.id)
 
             return files
