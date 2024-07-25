@@ -7,10 +7,10 @@ from langchain_box.document_loaders.box_metadata_query import BoxMetadataQueryLo
 from langchain_box.document_loaders.box_search import BoxSearchLoader
 
 __all__ = [
-    "BoxAILoader", 
+    "BoxAILoader",
     "BoxAIMode",
     "BoxFileLoader",
     "BoxFolderLoader",
     "BoxMetadataQueryLoader",
-    "BoxSearchLoader"
+    "BoxSearchLoader",
 ]

@@ -11,5 +11,5 @@ __all__ = [
     "BoxAIAskInput",
     "BoxAIAskTool",
     "BoxTextRepTool",
-    "BoxFolderContentsTool"
+    "BoxFolderContentsTool",
 ]

@@ -6,19 +6,15 @@ from langchain_box.document_loaders import (
     BoxFileLoader,
     BoxFolderLoader,
     BoxMetadataQueryLoader,
-    BoxSearchLoader
+    BoxSearchLoader,
 )
 from langchain_box.tools import (
     BoxAIAskTool,
     BoxFileSearchTool,
     BoxFolderContentsTool,
-    BoxTextRepTool
+    BoxTextRepTool,
 )
-from langchain_box.utilities import (
-    BoxAuth,
-    BoxAuthType,
-    BoxAPIWrapper
-)
+from langchain_box.utilities import BoxAuth, BoxAuthType, BoxAPIWrapper
 
 try:
     __version__ = metadata.version(__package__)

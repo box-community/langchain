@@ -13,14 +13,15 @@ from langchain_box.utilities import BoxAPIWrapper
 
 logger = logging.getLogger(__name__)
 
+
 class BoxFileSearchInput(BaseModel):
     """Input for the BoxFileSearch tool."""
 
     query: str = Field(description="search query to look up")
 
+
 class BoxFileSearchTool(BaseTool):
-    """Tool that performs natural language search on Box Content Cloud
-    """
+    """Tool that performs natural language search on Box Content Cloud"""
 
     box_developer_token: str = ""  #: :meta private:
 
@@ -39,10 +40,7 @@ class BoxFileSearchTool(BaseTool):
             values, "box_developer_token", "BOX_DEVELOPER_TOKEN"
         )
 
-        box = BoxAPIWrapper(
-            auth_type="token",
-            box_developer_token=box_developer_token
-        )
+        box = BoxAPIWrapper(auth_type="token", box_developer_token=box_developer_token)
 
         values["box"] = box
 

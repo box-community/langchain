@@ -6,7 +6,12 @@ from langchain_core.pydantic_v1 import root_validator
 from langchain_core.tools import BaseToolkit
 
 from langchain_community.tools import BaseTool
-from langchain_box.tools import BoxFileSearchTool, BoxAIAskTool, BoxTextRepTool, BoxFolderContentsTool
+from langchain_box.tools import (
+    BoxFileSearchTool,
+    BoxAIAskTool,
+    BoxTextRepTool,
+    BoxFolderContentsTool,
+)
 
 
 _BOX_TOOLS: List[Type[BaseTool]] = [
@@ -21,8 +26,7 @@ _BOX_TOOLS_MAP: Dict[str, Type[BaseTool]] = {
 
 
 class BoxToolkit(BaseToolkit):
-    """Toolkit for interacting with Box files.
-    """
+    """Toolkit for interacting with Box files."""
 
     selected_tools: Optional[List[str]] = None
     """If provided, only provide the selected tools. Defaults to all."""

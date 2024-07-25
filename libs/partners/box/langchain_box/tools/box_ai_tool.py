@@ -12,14 +12,18 @@ from langchain_box.utilities import BoxAPIWrapper
 
 logger = logging.getLogger(__name__)
 
+
 class BoxAIAskInput(BaseModel):
     """The query argument to send to the Box AI Ask tool."""
+
     query: str = Field(description="Box AI prompt")
+
 
 class BoxAIAskTool(BaseTool):
     """
-        Tool that calls Box AI to ask a question on a document(s) and adds the answer to your Documents.
+    Tool that calls Box AI to ask a question on a document(s) and adds the answer to your Documents.
     """
+
     box_developer_token: str = ""  #: :meta private:
     box_file_ids: List[str] = None
 
@@ -46,7 +50,7 @@ class BoxAIAskTool(BaseTool):
         box = BoxAPIWrapper(
             auth_type="token",
             box_developer_token=box_developer_token,
-            box_file_ids=values.get("box_file_ids")
+            box_file_ids=values.get("box_file_ids"),
         )
 
         values["box"] = box
@@ -63,6 +67,4 @@ class BoxAIAskTool(BaseTool):
         try:
             return self.box.get_documents_by_box_ai_ask(query)
         except Exception as e:
-            raise RuntimeError(
-                f"Error while running BoxAIAskTool: {e}"
-            )
+            raise RuntimeError(f"Error while running BoxAIAskTool: {e}")

@@ -24,9 +24,10 @@ class BoxTextRepInput(BaseModel):
 
     query: str = Field(description=description)
 
+
 class BoxTextRepTool(BaseTool):
     """
-        Tool that retrieves a text representation of any file that has one.
+    Tool that retrieves a text representation of any file that has one.
     """
 
     box_developer_token: str = ""  #: :meta private:
@@ -65,6 +66,4 @@ class BoxTextRepTool(BaseTool):
         try:
             return self.box.get_text_representation(file_id=query)
         except Exception as e:
-            raise RuntimeError(
-                f"Error while running BoxTextRepTool: {e}"
-            )
+            raise RuntimeError(f"Error while running BoxTextRepTool: {e}")

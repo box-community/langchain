@@ -26,9 +26,9 @@ class BoxFolderContentInput(BaseModel):
 
     query: str = Field(description="Query to search a folder for content")
 
+
 class BoxFolderContentsTool(BaseTool):
-    """List all files in a folder in Box
-    """
+    """List all files in a folder in Box"""
 
     box_developer_token: str = ""  #: :meta private:
 
@@ -48,11 +48,8 @@ class BoxFolderContentsTool(BaseTool):
         box_developer_token = get_from_dict_or_env(
             values, "box_developer_token", "BOX_DEVELOPER_TOKEN"
         )
-        
-        box = BoxAPIWrapper(
-            auth_type="token",
-            box_developer_token=box_developer_token
-        )
+
+        box = BoxAPIWrapper(auth_type="token", box_developer_token=box_developer_token)
 
         values["box"] = box
 
@@ -70,9 +67,7 @@ class BoxFolderContentsTool(BaseTool):
             for file in folder_content:
                 if file.type == "file":
                     files.append(self.box.get_document_by_file_id(file.id))
-            
+
             return files
         except Exception as e:
-            raise RuntimeError(
-                f"Error while running BoxFolderContentsTool: {e}"
-            )
+            raise RuntimeError(f"Error while running BoxFolderContentsTool: {e}")
